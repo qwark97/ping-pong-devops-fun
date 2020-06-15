@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"runtime"
 	"time"
 )
 
@@ -32,6 +34,31 @@ func serverHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("PING from %s", r.Host)
 	fmt.Fprintf(w, "Hi there, I'm PINGER. My name is %s", config.Name)
 }
+
+func pinger() {
+	var httpClient = &http.Client{
+		Timeout: time.Second * 5,
+	}
+	msg := "Hello Goopher, I'm " + config.Name
+	for {
+		func() {
+			greetings := bytes.NewBufferString(msg)
+			resp, err := httpClient.Post(config.Address, "application/json", greetings)
+			if err != nil {
+				log.Print("Something went wrong during request")
+				return
+			}
+			defer resp.Body.Close()
+			body, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				log.Print("Something went wrong during reading response")
+				return
+			}
+			log.Print(string(body))
+		}()
+		time.Sleep(time.Second * 5)
+	}
+}
 func main() {
 
 	config.loadConf("/home/marcin/go-code/src/pinger/conf.json")
@@ -41,6 +68,8 @@ func main() {
 		log.Fatal(http.ListenAndServe(":8080", nil))
 	}()
 
-	fmt.Println("Am here now")
-	time.Sleep(time.Second * 10)
+	go pinger()
+	runtime.Goexit()
+	fmt.Println("Exit")
+
 }
