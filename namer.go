@@ -46,7 +46,7 @@ func redisNewClient(port string) *redis.Client {
 }
 
 func main() {
-	config.loadConf("/home/marcin/all-conf/namer_conf.json")
+	config.loadConf("/home/ubuntu/all-conf/namer_conf.json")
 	rdb := redisNewClient("6379")
 	var randIdx int
 	var name string
