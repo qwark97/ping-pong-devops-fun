@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from aiohttp.web import Application
 from aiohttp.web import run_app
@@ -42,5 +43,10 @@ async def post_handler(request):
 app.add_routes(
     [web.route('POST', '/ping', post_handler)]
 )
-
-run_app(app, host='127.0.0.1', port=5555)
+try:
+    port = int(sys.argv[1])
+except IndexError:
+    logger.error('Provide PORT value')
+    exit(1)
+else:
+    run_app(app, host='0.0.0.0', port=port)
