@@ -2,13 +2,15 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"runtime"
 	"time"
+
+	"github.com/go-redis/redis/v8"
 )
 
 type data struct {
@@ -16,32 +18,45 @@ type data struct {
 	Address string `json:"address"`
 }
 
-func (d *data) loadConf(path string) {
-	fileContent, err := ioutil.ReadFile(path)
-	if err != nil {
-		panic("Provided configuration path is not valid!")
-	}
-
-	err = json.Unmarshal(fileContent, d)
-	if err != nil {
-		panic("Configuration file is not valid JSON file!")
-	}
-}
-
 var config data
+var ctx = context.Background()
 
 func serverHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("PING from %s", r.Host)
 	fmt.Fprintf(w, "Hi there, I'm PINGER. My name is %s", config.Name)
 }
 
+func namesGiver(rdb *redis.Client) {
+	for {
+		func() {
+			val, err := rdb.Get(ctx, "name").Result()
+			if err != nil {
+				if err == redis.Nil {
+					fmt.Println("There is no name")
+					return
+				}
+			}
+			if val == config.Name {
+				log.Print("There is no new name")
+				log.Print("Let's wait and try again")
+				time.Sleep(time.Second * 3)
+			} else {
+				config.Name = val
+				log.Print("New given name: ", string(config.Name))
+			}
+		}()
+		time.Sleep(time.Second * 3)
+	}
+}
+
 func pinger() {
 	var httpClient = &http.Client{
 		Timeout: time.Second * 5,
 	}
-	msg := "Hello Goopher, I'm " + config.Name
+
 	for {
 		func() {
+			msg := "Hello Goopher, I'm " + config.Name
 			greetings := bytes.NewBufferString(msg)
 			resp, err := httpClient.Post(config.Address, "application/json", greetings)
 			if err != nil {
@@ -54,20 +69,39 @@ func pinger() {
 				log.Print("Something went wrong during reading response")
 				return
 			}
-			log.Print(string(body))
+			log.Print("Pinged response: ", string(body))
 		}()
 		time.Sleep(time.Second * 5)
 	}
 }
+
+func redisNewClient(port string) *redis.Client {
+	addr := "localhost:" + port
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     addr,
+		Password: "", // no password set
+		DB:       0,  // use default DB
+	})
+
+	err := rdb.Ping(ctx).Err()
+	if err != nil {
+		panic(err)
+	}
+	return rdb
+}
+
 func main() {
 
-	config.loadConf("/home/marcin/go-code/src/pinger/conf.json")
+	rdb := redisNewClient("6379")
+	config.Address = "http://localhost:5050/ping"
 
 	go func() {
 		http.HandleFunc("/ping", serverHandler)
 		log.Fatal(http.ListenAndServe(":8080", nil))
 	}()
 
+	go namesGiver(rdb)
+	time.Sleep(time.Millisecond * 500)
 	go pinger()
 	runtime.Goexit()
 	fmt.Println("Exit")
