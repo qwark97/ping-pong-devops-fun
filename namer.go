@@ -31,7 +31,7 @@ func (d *data) loadConf(path string) {
 }
 
 func redisNewClient(port string) *redis.Client {
-	addr := "redis:" + port
+	addr := "localhost:" + port
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: "", // no password set
