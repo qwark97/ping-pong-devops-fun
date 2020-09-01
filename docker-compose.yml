@@ -1,0 +1,17 @@
+version: "3"
+services:
+  pinged-host:
+    build: /path/to/dir/with/dockerfile
+  redis-host:
+    image: redis
+  namer-host:
+    build: /path/to/dir/with/dockerfile
+    depends_on:
+      - redis-host
+  pinger-host:
+    build: /path/to/dir/with/dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - namer-host
+      - pinged-host
