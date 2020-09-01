@@ -76,7 +76,7 @@ func pinger() {
 }
 
 func redisNewClient(port string) *redis.Client {
-	addr := "localhost:" + port
+	addr := "redis-host:" + port
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: "", // no password set
@@ -93,7 +93,7 @@ func redisNewClient(port string) *redis.Client {
 func main() {
 
 	rdb := redisNewClient("6379")
-	config.Address = "http://localhost:5050/ping"
+	config.Address = "http://pinged-host:5050/ping"
 
 	go func() {
 		http.HandleFunc("/ping", serverHandler)
